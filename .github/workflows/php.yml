@@ -31,19 +31,10 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.php-versions }}-${{ hashFiles('**/composer.lock') }}
 
     - name: Validate composer.json and composer.lock
-      uses: php-actions/composer@v6
-      with:
-        command: validate
-        php_version: ${{ matrix.php-versions }}
-        version: 2
+      run: composer validate --no-interaction
 
-    - name: Install dependencies (no-dev for lint)
-      uses: php-actions/composer@v6
-      with:
-        command: install
-        args: --no-dev --prefer-dist --no-progress --no-suggest --verbose
-        php_version: ${{ matrix.php-versions }}
-        version: 2
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
 
     - name: Remove unsupported PHP 8 symfony/polyfill return types
       uses: jacobtomlinson/gha-find-replace@v2
@@ -57,30 +48,13 @@ jobs:
       run: for f in $(find . -name '*.php'); do php -l $f; RETVAL=$?; if [ $RETVAL -ne 0 ]; then exit $RETVAL; fi; done
 
     - name: Install dependencies (second pass with dev)
-      uses: php-actions/composer@v6
-      with:
-          command: install
-          args: --prefer-dist --no-progress --no-suggest --verbose
-          php_version: ${{ matrix.php-versions }}
-          version: 2
+      run: composer install --prefer-dist --no-progress --no-suggest --verbose
 
     - name: Remove intentional crash test in dependency
-      uses: php-actions/composer@v6
-      with:
-          command: run-script clean-crash-test
-          version: 2
-          php_version: ${{ matrix.php-versions }}
+      run: composer run-script clean-crash-test
 
     # - name: Format
-    #   uses: php-actions/composer@v6
-    #   with:
-    #     command: run-script format
-    #     php_version: ${{ matrix.php-versions }}
-    #     version: 2
+    #   run: composer run-script format
 
     - name: Run test suite
-      uses: php-actions/composer@v6
-      with:
-        command: run-script test
-        php_version: ${{ matrix.php-versions }}
-        version: 2
+      run: composer run-script test
