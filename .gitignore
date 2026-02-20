@@ -4,5 +4,6 @@ xdebug/*
 .phpunit.result.cache
 .idea
 .secrets
+.actrc
 # PHP-Scoper build output
 build/
