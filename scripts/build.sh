@@ -78,6 +78,10 @@ php scripts/update-namespaces.php "${OUTPUT_DIR}"
 echo "📝 Removing PHP 8 return types from symfony polyfills..."
 find "${OUTPUT_DIR}/vendor/symfony" -name "bootstrap80.php" -exec sed -i '' 's/: string|false/ /g' {} \;
 
+# Clean up intermediate build artifacts
+echo "🧹 Cleaning up intermediate build artifacts..."
+rm -rf "${VENDOR_PREFIXED_DIR}"
+
 # Restore dev dependencies for local development
 echo "🔄 Restoring dev dependencies..."
 composer install --prefer-dist --no-progress --quiet
