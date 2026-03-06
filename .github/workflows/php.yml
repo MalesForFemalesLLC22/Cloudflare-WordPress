@@ -1,4 +1,4 @@
-name: PHP Composer
+name: Test PHP Source
 
 on:
   push:
@@ -66,13 +66,24 @@ jobs:
       run: for f in $(find . -name '*.php'); do php -l $f; RETVAL=$?; if [ $RETVAL -ne 0 ]; then exit $RETVAL; fi; done
 
   test:
-    name: Tests (PHP ${{ matrix.php-versions }})
+    name: Tests (PHP ${{ matrix.php-versions }}${{ matrix.extensions == 'intl' && ' + intl' || '' }})
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         php-versions: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        extensions: ['intl', 'none']
+        exclude:
+          # Only test without intl on the lowest and highest PHP versions
+          - php-versions: '8.0'
+            extensions: 'none'
+          - php-versions: '8.1'
+            extensions: 'none'
+          - php-versions: '8.2'
+            extensions: 'none'
+          - php-versions: '8.3'
+            extensions: 'none'
 
     steps:
     - uses: actions/checkout@v4
@@ -80,12 +91,21 @@ jobs:
     - uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php-versions }}
+        extensions: ${{ matrix.extensions == 'none' && '-intl' || 'intl' }}
 
     - name: Download full vendor
       uses: actions/download-artifact@v4
       with:
         name: vendor-dev
         path: vendor/
+
+    - name: Verify intl extension status
+      run: |
+        if [ "${{ matrix.extensions }}" = "intl" ]; then
+          php -m | grep -q intl && echo "✓ intl extension is loaded" || (echo "✗ intl extension should be loaded" && exit 1)
+        else
+          php -m | grep -q intl && (echo "✗ intl extension should NOT be loaded" && exit 1) || echo "✓ intl extension is not loaded (testing polyfill)"
+        fi
 
     - name: Run test suite
       run: composer run-script test
