@@ -24,7 +24,7 @@ $files   = glob($pattern);
 
 if (empty($files)) {
     echo "No bootstrap80.php files found matching: {$pattern}" . PHP_EOL;
-    exit(0);
+    exit(1);
 }
 
 foreach ($files as $file) {
