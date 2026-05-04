@@ -74,16 +74,6 @@ jobs:
       matrix:
         php-versions: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
         extensions: ['intl', 'none']
-        exclude:
-          # Only test without intl on the lowest and highest PHP versions
-          - php-versions: '8.0'
-            extensions: 'none'
-          - php-versions: '8.1'
-            extensions: 'none'
-          - php-versions: '8.2'
-            extensions: 'none'
-          - php-versions: '8.3'
-            extensions: 'none'
 
     steps:
     - uses: actions/checkout@v4
