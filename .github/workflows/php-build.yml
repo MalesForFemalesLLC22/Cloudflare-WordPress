@@ -36,14 +36,18 @@ jobs:
         retention-days: 1
 
   syntax-check:
-    name: Syntax Check (build artifact)
+    name: Syntax Check (build artifact, PHP ${{ matrix.php-versions }})
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-versions: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
 
     steps:
     - uses: shivammathur/setup-php@v2
       with:
-        php-version: '7.4'
+        php-version: ${{ matrix.php-versions }}
 
     - name: Download build artifact
       uses: actions/download-artifact@v4
