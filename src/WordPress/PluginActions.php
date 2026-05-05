@@ -72,6 +72,11 @@ class PluginActions extends AbstractPluginActions
      * PATCH /plugin/:id/settings/default_settings
      *
      * Requests are synchronized
+     *
+     * @throws ZoneSettingFailException When zone details cannot be fetched, or
+     *         when one or more individual zone settings fail to update. In the
+     *         latter case the exception message lists the failed setting names
+     *         and confirms the remaining settings were applied successfully.
      */
     public function applyDefaultSettings()
     {
@@ -84,7 +89,7 @@ class PluginActions extends AbstractPluginActions
             throw new ZoneSettingFailException();
         }
 
-        $currentPlan = $details['result']['plan']['legacy_id'] ?? 'free';
+        $currentPlan = $details['result']['plan']['legacy_id'] ?? Plans::FREE_PLAN;
 
         // Define the recommended settings to apply
         $settings = array(

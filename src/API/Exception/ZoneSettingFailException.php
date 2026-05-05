@@ -6,7 +6,7 @@ class ZoneSettingFailException extends CloudFlareException
 {
     protected $message = 'Oops, something went wrong, please try again in a few minutes';
 
-    public function __construct($message = null, $code = 0, \Throwable $previous = null)
+    public function __construct($message = null, $code = 0, ?\Throwable $previous = null)
     {
         if ($message !== null) {
             $this->message = $message;
