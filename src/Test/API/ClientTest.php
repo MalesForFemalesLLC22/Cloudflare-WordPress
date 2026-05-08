@@ -96,6 +96,67 @@ class ClientTest extends \PHPUnit\Framework\TestCase
         $this->assertArrayNotHasKey(Client::X_AUTH_EMAIL, $headers);
     }
 
+    public function testBeforeSendUsesBearerAuthForCfutPrefix()
+    {
+        // New-format User API Token: "cfut_" + 40 chars + checksum.
+        // nosemgrep: generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+        $apiKey = 'cfut_' . str_repeat('a', 40) . 'X1y2';
+        $email = 'test@email.com';
+
+        $this->mockDataStore->method('getClientV4APIKey')->willReturn($apiKey);
+        $this->mockDataStore->method('getCloudFlareEmail')->willReturn($email);
+
+        $request = new \Cloudflare\APO\API\Request(null, null, null, null);
+        $beforeSendRequest = $this->mockClientAPI->beforeSend($request);
+
+        $headers = $beforeSendRequest->getHeaders();
+
+        $this->assertSame("Bearer {$apiKey}", $headers[Client::AUTHORIZATION]);
+        $this->assertArrayNotHasKey(Client::X_AUTH_KEY, $headers);
+        $this->assertArrayNotHasKey(Client::X_AUTH_EMAIL, $headers);
+    }
+
+    public function testBeforeSendUsesBearerAuthForCfatPrefix()
+    {
+        // New-format Account API Token: "cfat_" + 40 chars + checksum.
+        // nosemgrep: generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+        $apiKey = 'cfat_' . str_repeat('b', 40) . 'X1y2';
+        $email = 'test@email.com';
+
+        $this->mockDataStore->method('getClientV4APIKey')->willReturn($apiKey);
+        $this->mockDataStore->method('getCloudFlareEmail')->willReturn($email);
+
+        $request = new \Cloudflare\APO\API\Request(null, null, null, null);
+        $beforeSendRequest = $this->mockClientAPI->beforeSend($request);
+
+        $headers = $beforeSendRequest->getHeaders();
+
+        $this->assertSame("Bearer {$apiKey}", $headers[Client::AUTHORIZATION]);
+        $this->assertArrayNotHasKey(Client::X_AUTH_KEY, $headers);
+        $this->assertArrayNotHasKey(Client::X_AUTH_EMAIL, $headers);
+    }
+
+    public function testBeforeSendUsesGlobalKeyHeadersForLegacy45CharHex()
+    {
+        // Regression test for the corrected 37-45 hex range: a 45-char
+        // lowercase hex Global API Key must route to X-Auth-Email + X-Auth-Key.
+        // nosemgrep: generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+        $apiKey = str_repeat('a', 45);
+        $email = 'test@email.com';
+
+        $this->mockDataStore->method('getClientV4APIKey')->willReturn($apiKey);
+        $this->mockDataStore->method('getCloudFlareEmail')->willReturn($email);
+
+        $request = new \Cloudflare\APO\API\Request(null, null, null, null);
+        $beforeSendRequest = $this->mockClientAPI->beforeSend($request);
+
+        $headers = $beforeSendRequest->getHeaders();
+
+        $this->assertSame($apiKey, $headers[Client::X_AUTH_KEY]);
+        $this->assertSame($email, $headers[Client::X_AUTH_EMAIL]);
+        $this->assertArrayNotHasKey(Client::AUTHORIZATION, $headers);
+    }
+
     /**
      * @dataProvider providerIsGlobalApiKey
      */
@@ -144,10 +205,57 @@ class ClientTest extends \PHPUnit\Framework\TestCase
                 true,
                 '45-char lowercase hex matches legacy Global API Key format',
             ),
+            // Boundary coverage for the 37-45 lowercase hex range.
+            'pre-2026 Global API Key (38 chars hex)' => array(
+                str_repeat('a', 38),
+                true,
+                '38-char lowercase hex is inside the legacy range',
+            ),
+            'pre-2026 Global API Key (41 chars hex)' => array(
+                str_repeat('a', 41),
+                true,
+                '41-char lowercase hex is inside the legacy range',
+            ),
+            'pre-2026 Global API Key (42 chars hex)' => array(
+                str_repeat('a', 42),
+                true,
+                '42-char lowercase hex is inside the legacy range',
+            ),
+            'pre-2026 Global API Key (43 chars hex)' => array(
+                str_repeat('a', 43),
+                true,
+                '43-char lowercase hex is inside the legacy range',
+            ),
+            'pre-2026 Global API Key (44 chars hex)' => array(
+                str_repeat('a', 44),
+                true,
+                '44-char lowercase hex is inside the legacy range',
+            ),
+            'lowercase hex just below range (36 chars)' => array(
+                str_repeat('a', 36),
+                false,
+                '36-char lowercase hex is below the legacy range',
+            ),
+            'lowercase hex just above range (46 chars)' => array(
+                str_repeat('a', 46),
+                false,
+                '46-char lowercase hex is above the legacy range',
+            ),
             'lowercase hex outside 37-45 range' => array(
                 str_repeat('a', 48),
                 false,
                 'Hex strings outside the 37-45 range are not Global API Keys',
+            ),
+            // Negative cases inside the legacy length window.
+            'mixed-case hex inside legacy length window' => array(
+                'A' . str_repeat('a', 39),
+                false,
+                'Legacy Global API Key is lowercase only; uppercase should not match',
+            ),
+            'non-hex characters inside legacy length window' => array(
+                str_repeat('g', 40),
+                false,
+                'Non-hex characters in the legacy length window are not Global API Keys',
             ),
             // Pre-2026 API Token format: 40-char alphanumeric, mixed case.
             'pre-2026 API Token (40 char mixed case)' => array(
@@ -160,6 +268,11 @@ class ClientTest extends \PHPUnit\Framework\TestCase
                 '',
                 false,
                 'Empty credential should not be treated as Global API Key',
+            ),
+            'null input' => array(
+                null,
+                false,
+                'Null credential must be rejected (is_string guard)',
             ),
         );
     }
