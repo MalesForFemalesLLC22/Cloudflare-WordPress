@@ -138,6 +138,42 @@ class AbstractPluginActionsTest extends \PHPUnit\Framework\TestCase
         $this->mockAbstractPluginActions->login();
     }
 
+    public function testLoginTrimsWhitespaceBeforeStoringCredentials()
+    {
+        // Simulate a credential pasted from the dashboard with surrounding
+        // whitespace/newlines. The login flow must store the trimmed value
+        // so that Client::isGlobalApiKey() routes auth correctly.
+        // nosemgrep: generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+        $rawApiKey = "  cfk_" . str_repeat('a', 40) . "X1y2\n";
+        $rawEmail = "  test@email.com\n";
+        $trimmedApiKey = trim($rawApiKey);
+        $trimmedEmail = trim($rawEmail);
+
+        $this->mockRequest->method('getBody')->willReturn(array(
+            'apiKey' => $rawApiKey,
+            'email' => $rawEmail,
+        ));
+        $this->mockClientAPI->method('responseOk')->willReturn(true);
+
+        $this->mockDataStore
+            ->expects($this->once())
+            ->method('createUserDataStore')
+            ->with(
+                $this->identicalTo($trimmedApiKey),
+                $this->identicalTo($trimmedEmail),
+                $this->isNull(),
+                $this->isNull()
+            )
+            ->willReturn(true);
+
+        $this->mockAPIClient
+            ->expects($this->once())
+            ->method('createAPISuccessResponse')
+            ->with($this->identicalTo(array('email' => $trimmedEmail)));
+
+        $this->mockAbstractPluginActions->login();
+    }
+
     public function testGetPluginSettingsCallsCreatePluginSettingObjectIfDataStoreGetIsNull()
     {
         $this->mockDataStore->method('get')->willReturn(null);
